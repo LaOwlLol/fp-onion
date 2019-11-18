@@ -1,18 +1,12 @@
 package fp.onion;
 
-import fauxpas.entities.FilterableImage;
-import fp.image.lang.Interpreter;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
+import static java.nio.file.StandardWatchEventKinds.*;
 
 public class ImageWatch implements Runnable {
 
@@ -20,11 +14,14 @@ public class ImageWatch implements Runnable {
     private Thread watch_thread;
     private Path watch_dir;
     private App app;
-    private ArrayList<String> last;
     private AtomicBoolean watching;
-    private AtomicBoolean used;
+    private boolean debug;
 
     public ImageWatch(App app) {
+        this(app, false);
+    }
+
+    public ImageWatch(App app, boolean debug) {
         try {
             watch_service = FileSystems.getDefault().newWatchService();
         } catch (IOException e) {
@@ -32,9 +29,8 @@ public class ImageWatch implements Runnable {
             //e.printStackTrace();
         }
         this.watching = new AtomicBoolean(false);
-        this.used = new AtomicBoolean(false);
         this.app = app;
-        this.last = new ArrayList<>();
+        this.debug = debug;
     }
 
     public void startWatch(Path path) {
@@ -42,13 +38,14 @@ public class ImageWatch implements Runnable {
         watch_dir = path;
         //setup watch on selected directory.
         try {
-            WatchKey key = watch_dir.register(watch_service, ENTRY_CREATE);
+            WatchKey key = watch_dir.register(watch_service, ENTRY_CREATE, ENTRY_MODIFY);
             if (watch_thread == null) {
                 watch_thread = new Thread( this);
                 watch_thread.start();
             }
         } catch (IOException e) {
-            System.err.println(e);
+            System.err.println("Unable to setup directory watch.");
+            e.printStackTrace();
         }
     }
 
@@ -71,31 +68,31 @@ public class ImageWatch implements Runnable {
                     WatchEvent<Path> ev = (WatchEvent<Path>)event;
                     String filename = watch_dir.toString() + File.separator + ev.context().toString();
 
-                    File file = new File(filename);
+                    //if there is a last, and it's name is the same as this event's context
+                    if (app.isLastFrame(filename)) {
+                        //skip because we already worked on this image
+                        //this should be a redundant event.
+                        continue;
+                    }
 
-                    //mimetype should be something like "image/png"
                     try {
+                        File file = new File(filename);
                         String mimetype = Files.probeContentType(file.toPath());
+                        //mimetype should be something like "image/png"
                         if (mimetype != null && mimetype.split("/")[0].equals("image")) {
-                            System.out.println("Setting image: "+file.toURI().toString());
-                            if (used.get()) {
-                                last.add(0, filename);
-                                app.setCurrent(last.get(0));
-                                app.setPrevious(last.get(1));
-
+                            if (debug) {
+                                System.out.println("Setting image: " + file.toURI().toString());
                             }
-                            else {
-                                last.add(0, filename);
-                                app.setCurrent(last.get(0));
-                                used.set(true);
-                            }
+                            app.addFrame(filename);
                         }
                         else {
-                            System.out.println("not an image: "+filename+" type: "+mimetype);
+                            if (debug) {
+                                System.out.println("not an image: " + filename + " type: " + mimetype);
+                            }
                         }
                     }
                     catch (IOException e) {
-                        System.out.println("IOException:");
+                        System.err.println("IOException on:" + filename);
                         e.printStackTrace();
                         continue;
                     }
@@ -109,7 +106,9 @@ public class ImageWatch implements Runnable {
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                System.out.println("ImageWatch was interrupted.");
+                if (debug) {
+                    System.out.println("ImageWatch was interrupted.");
+                }
                 try {
                     watch_service.close();
                 } catch (IOException ex) {
@@ -120,11 +119,15 @@ public class ImageWatch implements Runnable {
 
         }
 
-        System.out.println("Watch ended.");
+        if (debug) {
+            System.out.println("Watch ended.");
+        }
     }
 
     public void stop() {
-        System.out.println("Stop called on ImageWatch.");
+        if (debug) {
+            System.out.println("Stop called on ImageWatch.");
+        }
         this.watching.set(false);
         watch_thread.interrupt();
     }

@@ -10,12 +10,9 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.ColorPicker;
-import javafx.scene.control.Slider;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
@@ -25,6 +22,7 @@ public class App extends Application {
 
     private ImageWatch image_watch;
     private ColorPicker keyColor_picker;
+    private FrameTimeline ft;
     private Color keyColor;
     private Canvas current;
     private Canvas previous;
@@ -34,15 +32,20 @@ public class App extends Application {
     private AtomicDouble keyDelta;
     private AtomicDouble transIntensity;
 
+
     public App() {
-        this.image_watch = new ImageWatch(this);
+
         this.current = new Canvas(1024, 768);
         this.previous = new Canvas(1024, 768);
         this.cgc = this.current.getGraphicsContext2D();
         this.pgc = this.previous.getGraphicsContext2D();
-        this.ip = new ImageProcessor(this.cgc, this.pgc);
         this.keyDelta = new AtomicDouble(0.11);
         this.transIntensity = new AtomicDouble(0.2);
+        this.keyColor = Color.GREEN;
+
+        this.ft = new FrameTimeline(true);
+        this.image_watch = new ImageWatch(this, false);
+        this.ip = new ImageProcessor(this.cgc, this.pgc, true);
     }
 
     public static void main(String[] args) {
@@ -77,37 +80,39 @@ public class App extends Application {
         }));
         botBar.getChildren().add(selectDir_btn);
 
+        Label keyColor_lbl = new Label("Key Color:");
+        botBar.getChildren().add(keyColor_lbl);
+
         keyColor_picker = new ColorPicker(Color.GREEN);
         keyColor_picker.setOnAction( (event) -> {
             keyColor = keyColor_picker.getValue();
+            refresh();
         });
         botBar.getChildren().add(keyColor_picker);
 
-        Slider delta_sldr = new Slider();
-        delta_sldr.setValue(0.11);
-        delta_sldr.setMin(0.0);
-        delta_sldr.setMax(1.0);
-        delta_sldr.setBlockIncrement(0.05);
-        delta_sldr.adjustValue(0.01);
-        delta_sldr.setMajorTickUnit(0.20);
-        delta_sldr.setMinorTickCount(4);
-        delta_sldr.setShowTickLabels(true);
-        delta_sldr.setShowTickMarks(true);
-        delta_sldr.valueProperty().addListener( (ov, old_val, new_val) -> keyDelta.set(new_val.doubleValue()) );
-        botBar.getChildren().add(delta_sldr);
+        Label delta_lbl = new Label("Key Treshold:");
+        botBar.getChildren().add(delta_lbl);
 
-        Slider trans_sldr = new Slider();
-        trans_sldr.setValue(0.2);
-        trans_sldr.setMin(0.0);
-        trans_sldr.setMax(1.0);
-        trans_sldr.setBlockIncrement(0.05);
-        trans_sldr.adjustValue(0.01);
-        trans_sldr.setMajorTickUnit(0.20);
-        trans_sldr.setMinorTickCount(4);
-        trans_sldr.setShowTickLabels(true);
-        trans_sldr.setShowTickMarks(true);
-        trans_sldr.valueProperty().addListener( (ov, old_val, new_val) -> transIntensity.set(new_val.doubleValue()) );
-        botBar.getChildren().add(trans_sldr);
+        TextField delta_input = new TextField(keyDelta.toString());
+        TextFormatter<Double> keyDelta_format = new TextFormatter<Double>(DoubleTextFilter.converter, 0.0, DoubleTextFilter.filter);
+        delta_input.setTextFormatter( keyDelta_format );
+        keyDelta_format.valueProperty().addListener(((observable, oldValue, newValue) -> {
+            keyDelta.set(newValue.doubleValue());
+            refresh();
+        }));
+        botBar.getChildren().add(delta_input);
+
+        Label trans_lbl = new Label("Peel Alpha:");
+        botBar.getChildren().add(trans_lbl);
+
+        TextField trans_input = new TextField();
+        TextFormatter<Double> trans_format = new TextFormatter<Double>(DoubleTextFilter.converter, 0.0, DoubleTextFilter.filter);
+        trans_input.setTextFormatter( trans_format  );
+        trans_format.valueProperty().addListener(((observable, oldValue, newValue) -> {
+            transIntensity.set(newValue.doubleValue());
+            refresh();
+        }));
+        botBar.getChildren().add(trans_input);
 
         stage.setTitle("fp-onion");
         Scene scene = new Scene(root, 1024, 800);
@@ -115,11 +120,33 @@ public class App extends Application {
         stage.show();
     }
 
-    public void setCurrent(String file) {
+    public void addFrame(String frame) {
+        this.ft.addFrame(frame);
+        this.refresh();
+    }
+
+    public void refresh() {
+        if (ft.frameCount() == 0) {
+            return;
+        }
+        if (ft.frameCount() > 1) {
+            this.setCurrent(ft.getCurrent());
+            this.setPrevious(ft.getPrevious(1));
+        }
+        else {
+            this.setCurrent(ft.getCurrent());
+        }
+    }
+
+    public boolean isLastFrame(String frame) {
+        return ft.isLastFrame(frame);
+    }
+
+    private void setCurrent(String file) {
         this.ip.enqueueCurrent(ScriptBuilder.getChromaScript(file, keyColor, keyDelta.get()));
     }
 
-    public void setPrevious(String file) {
+    private void setPrevious(String file) {
         this.ip.enqueuePrevious( ScriptBuilder.getTransparencyScript(ScriptBuilder.getChromaScript(file, keyColor, keyDelta.get()), transIntensity.get()) );
     }
 

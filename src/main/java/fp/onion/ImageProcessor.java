@@ -13,8 +13,14 @@ public class ImageProcessor {
     GraphicsContext cgc;
     GraphicsContext pgc;
     Interpreter interp;
+    private boolean debug;
 
-    public ImageProcessor(GraphicsContext current, GraphicsContext previous) {
+    public ImageProcessor(GraphicsContext current, GraphicsContext previous, FrameTimeline ft) {
+        this(current, previous, false);
+    }
+
+    public ImageProcessor(GraphicsContext current, GraphicsContext previous,  boolean debug) {
+        this.debug = debug;
         this.worker = new SharedQueuePool(2);
         this.cgc = current;
         this.pgc = previous;
@@ -22,6 +28,9 @@ public class ImageProcessor {
     }
 
     public void enqueueCurrent(String script) {
+        if (debug) {
+            System.out.println("Current Script: " + script);
+        }
         this.worker.enqueue( new ProduceConsumeEvent<Image>( ()-> interp.interp(script).getImage(), (image) -> {
             cgc.clearRect(0,0, 1024,768);
             cgc.drawImage(image, 0, 0, 1024, 768);
@@ -29,6 +38,9 @@ public class ImageProcessor {
     }
 
     public void enqueuePrevious(String script) {
+        if (debug) {
+            System.out.println("Previous Script: " + script);
+        }
         this.worker.enqueue( new ProduceConsumeEvent<Image>(
             ()-> {
                 pgc.clearRect(0,0, 1024,768);
@@ -38,7 +50,9 @@ public class ImageProcessor {
     }
 
     public void close() {
-        System.out.println("Stopping Image Processing");
+        if (debug) {
+            System.out.println("Stopping Image Processing");
+        }
         this.worker.cleanup();
     }
 }

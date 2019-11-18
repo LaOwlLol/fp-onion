@@ -1,5 +1,5 @@
 #fp-onion
 
-A tool for onion skinning.
+A faux pas tool for onion skinning.
 
-Watch a directory for new images.  When a new image appears in the watched directory the new image will become the current frame while the previous frame is _peeled_ off.
+fp-onion will watch a directory for new images.  When a new image appears in the watched directory will be chroma keyed and used as the current frame while the previous frame is _peeled_ off.
