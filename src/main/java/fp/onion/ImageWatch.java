@@ -3,7 +3,6 @@ package fp.onion;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.nio.file.StandardWatchEventKinds.*;
@@ -69,7 +68,7 @@ public class ImageWatch implements Runnable {
                     String filename = watch_dir.toString() + File.separator + ev.context().toString();
 
                     //if there is a last, and it's name is the same as this event's context
-                    if (app.isLastFrame(filename)) {
+                    if (app.hasFrame(filename)) {
                         //skip because we already worked on this image
                         //this should be a redundant event.
                         continue;
@@ -83,7 +82,7 @@ public class ImageWatch implements Runnable {
                             if (debug) {
                                 System.out.println("Setting image: " + file.toURI().toString());
                             }
-                            app.addFrame(filename);
+                            app.captureFrame(filename);
                         }
                         else {
                             if (debug) {

@@ -4,6 +4,7 @@
 package fp.onion;
 
 import java.io.File;
+import java.util.ArrayList;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import javafx.application.Application;
@@ -22,7 +23,7 @@ public class App extends Application {
 
     private ImageWatch image_watch;
     private ColorPicker keyColor_picker;
-    private FrameTimeline ft;
+    private OnionFrameTimeline ft;
     private Color keyColor;
     private Canvas current;
     private Canvas previous;
@@ -43,7 +44,7 @@ public class App extends Application {
         this.transIntensity = new AtomicDouble(0.2);
         this.keyColor = Color.GREEN;
 
-        this.ft = new FrameTimeline(true);
+        this.ft = new OnionFrameTimeline(true);
         this.image_watch = new ImageWatch(this, false);
         this.ip = new ImageProcessor(this.cgc, this.pgc, true);
     }
@@ -120,7 +121,7 @@ public class App extends Application {
         stage.show();
     }
 
-    public void addFrame(String frame) {
+    public void captureFrame(String frame) {
         this.ft.addFrame(frame);
         this.refresh();
     }
@@ -129,25 +130,26 @@ public class App extends Application {
         if (ft.frameCount() == 0) {
             return;
         }
-        if (ft.frameCount() > 1) {
-            this.setCurrent(ft.getCurrent());
-            this.setPrevious(ft.getPrevious(1));
+        ArrayList<String> frames = ft.getOnion();
+        if (frames.size() > 0) {
+            this.setCurrent(frames.get(0));
         }
-        else {
-            this.setCurrent(ft.getCurrent());
+        if (frames.size() > 1) {
+            this.setPrevious(frames.get(1));
         }
+
     }
 
-    public boolean isLastFrame(String frame) {
-        return ft.isLastFrame(frame);
+    public boolean hasFrame(String frame) {
+        return ft.containsFrame(frame);
     }
 
     private void setCurrent(String file) {
-        this.ip.enqueueCurrent(ScriptBuilder.getChromaScript(file, keyColor, keyDelta.get()));
+        this.ip.enqueue(ScriptBuilder.getChromaScript(file, keyColor, keyDelta.get()), 0);
     }
 
     private void setPrevious(String file) {
-        this.ip.enqueuePrevious( ScriptBuilder.getTransparencyScript(ScriptBuilder.getChromaScript(file, keyColor, keyDelta.get()), transIntensity.get()) );
+        this.ip.enqueue( ScriptBuilder.getTransparencyScript(ScriptBuilder.getChromaScript(file, keyColor, keyDelta.get()), transIntensity.get()), 1 );
     }
 
     @Override

@@ -2,7 +2,6 @@ package fp.onion;
 
 import fauxpas.event.ProduceConsumeEvent;
 import fauxpas.eventqueue.SharedQueuePool;
-import fauxpas.eventqueue.SingleQueue;
 import fp.image.lang.Interpreter;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
@@ -15,7 +14,7 @@ public class ImageProcessor {
     Interpreter interp;
     private boolean debug;
 
-    public ImageProcessor(GraphicsContext current, GraphicsContext previous, FrameTimeline ft) {
+    public ImageProcessor(GraphicsContext current, GraphicsContext previous, OnionFrameTimeline ft) {
         this(current, previous, false);
     }
 
@@ -27,26 +26,25 @@ public class ImageProcessor {
         this.interp = new Interpreter();
     }
 
-    public void enqueueCurrent(String script) {
+    public void enqueue(String script, int n) {
         if (debug) {
-            System.out.println("Current Script: " + script);
+            System.out.println( n + "th Script: " + script);
         }
-        this.worker.enqueue( new ProduceConsumeEvent<Image>( ()-> interp.interp(script).getImage(), (image) -> {
-            cgc.clearRect(0,0, 1024,768);
-            cgc.drawImage(image, 0, 0, 1024, 768);
-        } ) );
-    }
 
-    public void enqueuePrevious(String script) {
-        if (debug) {
-            System.out.println("Previous Script: " + script);
+        if (n == 0) {
+            this.worker.enqueue( new ProduceConsumeEvent<Image>( ()-> interp.interp(script).getImage(), (image) -> {
+                cgc.clearRect(0,0, 1024,768);
+                cgc.drawImage(image, 0, 0, 1024, 768);
+            } ) );
         }
-        this.worker.enqueue( new ProduceConsumeEvent<Image>(
-            ()-> {
-                pgc.clearRect(0,0, 1024,768);
-                return interp.interp(script).getImage();
-            },
-            (image) -> pgc.drawImage(image, 0,0, 1024, 768) ));
+        else {
+            this.worker.enqueue( new ProduceConsumeEvent<Image>(
+                ()-> {
+                    pgc.clearRect(0,0, 1024,768);
+                    return interp.interp(script).getImage();
+                },
+                (image) -> pgc.drawImage(image, 0,0, 1024, 768) ));
+        }
     }
 
     public void close() {
