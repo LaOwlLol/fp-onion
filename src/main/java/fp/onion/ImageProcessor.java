@@ -14,7 +14,7 @@ public class ImageProcessor {
     Interpreter interp;
     private boolean debug;
 
-    public ImageProcessor(GraphicsContext current, GraphicsContext previous, OnionFrameTimeline ft) {
+    public ImageProcessor(GraphicsContext current, GraphicsContext previous, FrameTimeline ft) {
         this(current, previous, false);
     }
 

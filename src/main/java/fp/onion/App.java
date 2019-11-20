@@ -23,7 +23,7 @@ public class App extends Application {
 
     private ImageWatch image_watch;
     private ColorPicker keyColor_picker;
-    private OnionFrameTimeline ft;
+    private FrameTimeline ft;
     private Color keyColor;
     private Canvas current;
     private Canvas previous;
@@ -44,7 +44,7 @@ public class App extends Application {
         this.transIntensity = new AtomicDouble(0.2);
         this.keyColor = Color.GREEN;
 
-        this.ft = new OnionFrameTimeline(true);
+        this.ft = new FrameTimeline(true);
         this.image_watch = new ImageWatch(this, false);
         this.ip = new ImageProcessor(this.cgc, this.pgc, true);
     }
@@ -130,7 +130,7 @@ public class App extends Application {
         if (ft.frameCount() == 0) {
             return;
         }
-        ArrayList<String> frames = ft.getOnion();
+        ArrayList<String> frames = ft.getFrameSequence(2);
         if (frames.size() > 0) {
             this.setCurrent(frames.get(0));
         }
