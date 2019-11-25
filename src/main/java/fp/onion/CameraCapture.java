@@ -3,6 +3,8 @@ package fp.onion;
 import com.github.sarxos.webcam.Webcam;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.WritableImage;
+
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -19,6 +21,7 @@ public class CameraCapture implements Runnable {
 
     public CameraCapture(Webcam webCam,  ImageProcessor ip, boolean debug) {
         this.webCam = webCam;
+        this.webCam.setViewSize(new Dimension(640,480));
         this.ip = ip;
         this.capturing = false;
         this.debug = debug;
@@ -35,11 +38,12 @@ public class CameraCapture implements Runnable {
         while (this.capturing) {
             try {
                 if ((img = webCam.getImage()) != null) {
-
+                    //TODO enqueue a producer consumer event  to sut out the atomic ref.
                     ref.set(SwingFXUtils.toFXImage(img, ref.get()));
                     img.flush();
-
-                    this.ip.enqueue( ref.get(), 0 );
+                    if (capturing) {
+                        this.ip.enqueue(ref.get(), 0);
+                    }
                 }
             }
             catch (Exception e) {
@@ -48,7 +52,7 @@ public class CameraCapture implements Runnable {
         }
 
         if (debug) {
-            System.out.println("Webcam process stopped..");
+            System.out.println("Webcam process stopped.");
         }
         webCam.close();
     }

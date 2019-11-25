@@ -57,13 +57,17 @@ public class ImageProcessor {
         if (n == 0) {
             this.worker.enqueue( () -> {
                 cgc.clearRect(0,0, 1024,768);
-                cgc.drawImage(img, 0, 0, 1024, 768);
+                if (img != null) {
+                    cgc.drawImage(img, 0, 0, 1024, 768);
+                }
             } );
         }
         else {
             this.worker.enqueue( () -> {
                 pgc.clearRect(0,0, 1024,768);
-                pgc.drawImage(img, 0, 0, 1024, 768);
+                if (img != null) {
+                    pgc.drawImage(img, 0, 0, 1024, 768);
+                }
             } );
         }
     }

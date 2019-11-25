@@ -28,6 +28,10 @@ dependencies {
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
 
+    // https://mvnrepository.com/artifact/org.slf4j/slf4j-simple
+    //Required by sarxos/webcam-capture >?
+    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.28'
+
     // https://mvnrepository.com/artifact/com.github.sarxos/webcam-capture
     compile group: 'com.github.sarxos', name: 'webcam-capture', version: '0.3.12'
 

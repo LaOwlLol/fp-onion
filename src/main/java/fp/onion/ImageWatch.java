@@ -67,6 +67,8 @@ public class ImageWatch implements Runnable {
                     WatchEvent<Path> ev = (WatchEvent<Path>)event;
                     String filename = watch_dir.toString() + File.separator + ev.context().toString();
 
+                    filename = filename.replace("\\", "/");
+
                     //if there is a last, and it's name is the same as this event's context
                     if (app.hasFrame(filename)) {
                         //skip because we already worked on this image

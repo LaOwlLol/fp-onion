@@ -5,9 +5,16 @@ package fp.onion;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.github.sarxos.webcam.Webcam;
 import com.google.common.util.concurrent.AtomicDouble;
 import javafx.application.Application;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -15,6 +22,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
@@ -32,7 +40,7 @@ public class App extends Application {
     private ImageProcessor ip;
     private AtomicDouble keyDelta;
     private AtomicDouble transIntensity;
-
+    private AtomicBoolean camEnabled;
 
     public App() {
 
@@ -47,6 +55,8 @@ public class App extends Application {
         this.ft = new FrameTimeline(true);
         this.image_watch = new ImageWatch(this, false);
         this.ip = new ImageProcessor(this.cgc, this.pgc, true);
+
+        this.camEnabled = new AtomicBoolean(false);
     }
 
     public static void main(String[] args) {
@@ -60,13 +70,100 @@ public class App extends Application {
         StackPane centerStack = new StackPane();
         root.setCenter(centerStack);
 
-        HBox botBar = new HBox();
-        root.setBottom(botBar);
-
         centerStack.getChildren().add(previous);
         centerStack.getChildren().add(current);
 
-        //ip.enqueueCurrent(ScriptBuilder.getChromaScript("/home/laowl/Pictures/neat.png", Color.GREEN, 0.1) ) ;
+        VBox bottomGroup = new VBox();
+        root.setBottom(bottomGroup);
+
+        initFilterOptions(bottomGroup);
+        initCaptureOptions(bottomGroup);
+
+        stage.setTitle("fp-onion");
+        Scene scene = new Scene(root, 1024, 832);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    private void initCaptureOptions(VBox bottomGroup) {
+        HBox captureOpts = new HBox();
+        captureOpts.setSpacing(10);
+        captureOpts.setPadding(new Insets(0, 20, 10, 20));
+        bottomGroup.getChildren().add(captureOpts);
+
+        Label camera_lbl = new Label("Camera:");
+        captureOpts.getChildren().add(camera_lbl);
+
+        int webCamCounter = 0;
+        ObservableList<WebCamInfo> cameraInfo = FXCollections.observableArrayList();
+
+        for (Webcam webcam : Webcam.getWebcams()) {
+            WebCamInfo webCamInfo = new WebCamInfo();
+            webCamInfo.setWebCamIndex(webCamCounter);
+            webCamInfo.setWebCamName(webcam.getName());
+            cameraInfo.add(webCamInfo);
+            webCamCounter++;
+        }
+
+        ComboBox<WebCamInfo> cameraOptions = new ComboBox<WebCamInfo>();
+        cameraOptions.setItems(cameraInfo);
+        cameraOptions.setPromptText("Choose a Camera");
+        cameraOptions.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<WebCamInfo>() {
+
+            @Override
+            public void changed(ObservableValue<? extends WebCamInfo> arg0, WebCamInfo arg1, WebCamInfo arg2) {
+                if (arg2 != null) {
+                    System.out.println("WebCam Index: " + arg2.getWebCamIndex() + ": WebCam Name:" + arg2.getWebCamName());
+                    ip.enqueue(Webcam.getWebcams().get(arg2.getWebCamIndex()));
+                    camEnabled.set(true);
+                }
+            }
+        });
+        captureOpts.getChildren().add(cameraOptions);
+    }
+
+    private void initFilterOptions(VBox bottomGroup) {
+        HBox filterOpts = new HBox();
+        filterOpts.setSpacing(10);
+        filterOpts.setPadding(new Insets(0, 20, 10, 20));
+        bottomGroup.getChildren().add(filterOpts);
+
+        Label keyColor_lbl = new Label("Key Color:");
+        filterOpts.getChildren().add(keyColor_lbl);
+
+        keyColor_picker = new ColorPicker(Color.GREEN);
+        keyColor_picker.setOnAction( (event) -> {
+            keyColor = keyColor_picker.getValue();
+            refresh();
+        });
+        filterOpts.getChildren().add(keyColor_picker);
+
+        Label delta_lbl = new Label("Key Treshold:");
+        filterOpts.getChildren().add(delta_lbl);
+
+        TextField delta_input = new TextField();
+        TextFormatter<Double> keyDelta_format = new TextFormatter<Double>(DoubleTextFilter.converter, 0.11, DoubleTextFilter.filter);
+        delta_input.setTextFormatter( keyDelta_format );
+        keyDelta_format.valueProperty().addListener(((observable, oldValue, newValue) -> {
+            keyDelta.set(newValue.doubleValue());
+            refresh();
+        }));
+        filterOpts.getChildren().add(delta_input);
+
+        Label trans_lbl = new Label("Peel Alpha:");
+        filterOpts.getChildren().add(trans_lbl);
+
+        TextField trans_input = new TextField();
+        TextFormatter<Double> trans_format = new TextFormatter<Double>(DoubleTextFilter.converter, 0.2, DoubleTextFilter.filter);
+        trans_input.setTextFormatter( trans_format  );
+        trans_format.valueProperty().addListener(((observable, oldValue, newValue) -> {
+            transIntensity.set(newValue.doubleValue());
+            refresh();
+        }));
+        filterOpts.getChildren().add(trans_input);
+
+        Label watch_lbl = new Label("Watch Directory:");
+        filterOpts.getChildren().add(watch_lbl);
 
         Button selectDir_btn = new Button("Select");
         selectDir_btn.setOnMouseClicked( (event -> {
@@ -79,46 +176,7 @@ public class App extends Application {
                 }
             }
         }));
-        botBar.getChildren().add(selectDir_btn);
-
-        Label keyColor_lbl = new Label("Key Color:");
-        botBar.getChildren().add(keyColor_lbl);
-
-        keyColor_picker = new ColorPicker(Color.GREEN);
-        keyColor_picker.setOnAction( (event) -> {
-            keyColor = keyColor_picker.getValue();
-            refresh();
-        });
-        botBar.getChildren().add(keyColor_picker);
-
-        Label delta_lbl = new Label("Key Treshold:");
-        botBar.getChildren().add(delta_lbl);
-
-        TextField delta_input = new TextField(keyDelta.toString());
-        TextFormatter<Double> keyDelta_format = new TextFormatter<Double>(DoubleTextFilter.converter, 0.0, DoubleTextFilter.filter);
-        delta_input.setTextFormatter( keyDelta_format );
-        keyDelta_format.valueProperty().addListener(((observable, oldValue, newValue) -> {
-            keyDelta.set(newValue.doubleValue());
-            refresh();
-        }));
-        botBar.getChildren().add(delta_input);
-
-        Label trans_lbl = new Label("Peel Alpha:");
-        botBar.getChildren().add(trans_lbl);
-
-        TextField trans_input = new TextField();
-        TextFormatter<Double> trans_format = new TextFormatter<Double>(DoubleTextFilter.converter, 0.0, DoubleTextFilter.filter);
-        trans_input.setTextFormatter( trans_format  );
-        trans_format.valueProperty().addListener(((observable, oldValue, newValue) -> {
-            transIntensity.set(newValue.doubleValue());
-            refresh();
-        }));
-        botBar.getChildren().add(trans_input);
-
-        stage.setTitle("fp-onion");
-        Scene scene = new Scene(root, 1024, 800);
-        stage.setScene(scene);
-        stage.show();
+        filterOpts.getChildren().add(selectDir_btn);
     }
 
     public void captureFrame(String frame) {
@@ -130,14 +188,21 @@ public class App extends Application {
         if (ft.frameCount() == 0) {
             return;
         }
-        ArrayList<String> frames = ft.getFrameSequence(2);
-        if (frames.size() > 0) {
-            this.setCurrent(frames.get(0));
-        }
-        if (frames.size() > 1) {
-            this.setPrevious(frames.get(1));
-        }
 
+        if (!camEnabled.get()) {
+            ArrayList<String> frames = ft.getFrameSequence(2);
+
+            if (frames.size() > 0) {
+                this.setCurrent(frames.get(0));
+            }
+            if (frames.size() > 1) {
+                this.setPrevious(frames.get(1));
+            }
+        }
+        else {
+            ArrayList<String> frames = ft.getFrameSequence(1);
+            this.setPrevious(frames.get(0));
+        }
     }
 
     public boolean hasFrame(String frame) {
