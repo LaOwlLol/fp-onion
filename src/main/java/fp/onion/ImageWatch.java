@@ -1,5 +1,8 @@
 package fp.onion;
 
+import javafx.scene.image.Image;
+import javafx.scene.image.WritableImage;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
@@ -56,55 +59,6 @@ public class ImageWatch implements Runnable {
             WatchKey key;
             try {
                 key = watch_service.take();
-
-                for (WatchEvent<?> event: key.pollEvents()) {
-                    WatchEvent.Kind<?> kind = event.kind();
-                    if (kind == OVERFLOW) {
-                        continue;
-                    }
-
-                    // The filename is the context of the event.
-                    WatchEvent<Path> ev = (WatchEvent<Path>)event;
-                    String filename = watch_dir.toString() + File.separator + ev.context().toString();
-
-                    filename = filename.replace("\\", "/");
-
-                    //if there is a last, and it's name is the same as this event's context
-                    if (app.hasFrame(filename)) {
-                        //skip because we already worked on this image
-                        //this should be a redundant event.
-                        continue;
-                    }
-
-                    try {
-                        File file = new File(filename);
-                        String mimetype = Files.probeContentType(file.toPath());
-                        //mimetype should be something like "image/png"
-                        if (mimetype != null && mimetype.split("/")[0].equals("image")) {
-                            if (debug) {
-                                System.out.println("Setting image: " + file.toURI().toString());
-                            }
-                            app.captureFrame(filename);
-                        }
-                        else {
-                            if (debug) {
-                                System.out.println("not an image: " + filename + " type: " + mimetype);
-                            }
-                        }
-                    }
-                    catch (IOException e) {
-                        System.err.println("IOException on:" + filename);
-                        e.printStackTrace();
-                        continue;
-                    }
-                }
-                // Reset the key -- this step is critical if you want to
-                // receive further watch events.  If the key is no longer valid,
-                // the directory is inaccessible so exit the loop.
-                boolean valid = key.reset();
-                if (!valid) {
-                    break;
-                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 if (debug) {
@@ -118,10 +72,74 @@ public class ImageWatch implements Runnable {
                 return;
             }
 
+            for (WatchEvent<?> event: key.pollEvents()) {
+                WatchEvent.Kind<?> kind = event.kind();
+                if (kind == OVERFLOW) {
+                    continue;
+                }
+
+                // The filename is the context of the event.
+                WatchEvent<Path> ev = (WatchEvent<Path>)event;
+                String filename = watch_dir.toString() + File.separator + ev.context().toString();
+
+                filename = filename.replace("\\", "/");
+
+                //if there is a last, and it's name is the same as this event's context
+                if (app.hasFrame(filename)) {
+                    //skip because we already worked on this image
+                    //this should be a redundant event.
+                    continue;
+                }
+
+                File file = new File(filename);
+                try {
+                    String mimetype = Files.probeContentType(file.toPath());
+                    //mimetype should be something like "image/png"
+                    if (mimetype != null && mimetype.split("/")[0].equals("image")) {
+
+                    }
+                    else {
+                        if (debug) {
+                            System.out.println("Not an image: " + filename + " type: " + mimetype);
+                            continue;
+                        }
+                    }
+                }
+                catch (IOException e) {
+                    if (debug) {
+                        System.err.println("IOException on:" + filename);
+                        e.printStackTrace();
+                    }
+                    continue;
+                }
+
+                //TODO This only seems to apply TO windows file system (and is critical there)
+                // but never appears to throw errors on linux and prevents the successful finish of an image.
+                // really going to need to rethink this whole architecture file watch may now cut it.
+                /*Image i = new Image(file.toURI().toString());
+                if (i.getWidth() < 1 || i.getHeight() < 1 ) {
+                    if (debug) {
+                        System.out.println("Malformed image: " + filename);
+                    }
+                    continue;
+                }*/
+
+                if (debug) {
+                    System.out.println("Capturing image: " + filename);
+                }
+                app.captureFrame(filename);
+            }
+            // Reset the key -- this step is critical if you want to
+            // receive further watch events.  If the key is no longer valid,
+            // the directory is inaccessible so exit the loop.
+            boolean valid = key.reset();
+            if (!valid) {
+                break;
+            }
         }
 
         if (debug) {
-            System.out.println("Watch ended.");
+            System.out.println("Image Watch ended.");
         }
     }
 

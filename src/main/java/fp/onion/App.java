@@ -53,7 +53,7 @@ public class App extends Application {
         this.keyColor = Color.GREEN;
 
         this.ft = new FrameTimeline(true);
-        this.image_watch = new ImageWatch(this, false);
+        this.image_watch = new ImageWatch(this, true);
         this.ip = new ImageProcessor(this.cgc, this.pgc, true);
 
         this.camEnabled = new AtomicBoolean(false);
